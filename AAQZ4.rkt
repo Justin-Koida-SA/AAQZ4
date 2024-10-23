@@ -1,7 +1,7 @@
 #lang typed/racket
 (require typed/rackunit)
 
-(define-type ExprC (U numC stringC idC appC ifC ))
+(define-type ExprC (U numC stringC idC appC ifC lamC))
 (define-type Value (U numV boolV closV primV))
 
 (struct numV[(n : Real)] #:transparent)
@@ -9,7 +9,7 @@
 (struct closV [(arg : (Listof idC)) (body : ExprC) (env : Enviroment)])
 (struct primV [(arg : Symbol) (body : ExprC) (env : Enviroment)])
 
-(struct lamC [(args : (Listof Symbol)) (body : ExprC)] #:transparent)
+(struct lamC [(args : (Listof idC)) (body : ExprC)] #:transparent)
 (struct appC [(func : ExprC) (args : (Listof ExprC))] #:transparent)
 (struct idC [(name : Symbol)] #:transparent)
 (struct numC[(n : Real)] #:transparent)
@@ -48,8 +48,11 @@
 (define (interp [expr : ExprC] [env : Enviroment]) : Value
   (match expr
     [(numC n) (numV n)]
-    [(idC n) (lookup n env)]))
-    ;;[(appC f a) (... add to empty env...)]))
+    [(idC n) (lookup n env)]
+    [(lamC )]
+    [(appC f a) (interp f) ]))
+
+
 
 
 
@@ -73,7 +76,7 @@
     [(list (list args ...) '=> body)
      (cond
        [(not (andmap symbol? args)) (error 'parse "AAQZ Expected a list of symbols for arguments got ~a" args)]
-       [else (closV (check-duplicate-arg (map idC args)) (parse body) (Enviroment '()))]) ;using '() as place holder top environment replace later
+       [else (lamC (check-duplicate-arg (map idC args)) (parse body))]) ;using '() as place holder top environment replace later
      ]
     [other (error 'parse "syntax error in AAQZ3, got ~e" other)]))
 

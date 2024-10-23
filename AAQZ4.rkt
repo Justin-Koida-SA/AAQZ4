@@ -6,7 +6,7 @@
 
 (struct numV[(n : Real)] #:transparent)
 (struct boolV[(bool : Boolean)] #:transparent)
-(struct closV [(arg : (Listof idC)) (body : ExprC) (env : Enviroment)])
+(struct closV [(arg : (Listof Symbol)) (body : ExprC) (env : Enviroment)])
 (struct primV [(arg : Symbol) (body : ExprC) (env : Enviroment)])
 
 (struct lamC [(args : (Listof idC)) (body : ExprC)] #:transparent)
@@ -49,9 +49,19 @@
   (match expr
     [(numC n) (numV n)]
     [(idC n) (lookup n env)]
-    [(lamC )]
-    [(appC f a) (interp f) ]))
+    [(lamC args body) (closV (map idC-name args) body env)]
+    [(appC f a) (interp f env) ]))
 
+(define (app-intrp-helper [closer : closV] [args : (Listof ExprC)]) : Value
+  (match closer
+    [(closV syms body env) (interp body (extend-env env ))])
+  )
+
+(define (zip [l1 : (Listof ExprC)] [l2 : (Listof ExprC)]) : (Listof (Listof ExprC))
+  (match (list l1 l2)
+    [(list '() '()) '()]
+    [(list (cons f1 r1) (cons f2 r2)) (cons (list f1 f2) (zip r1 r2))]
+    [other (error 'zip "Number of variables and arguments do not match AAQZ3: ~a" other)]))
 
 
 

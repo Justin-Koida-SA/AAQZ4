@@ -9,7 +9,7 @@
 (struct closV [(arg : (Listof Symbol)) (body : ExprC) (env : Enviroment)])
 (struct primV [(arg : Symbol) (body : ExprC) (env : Enviroment)])
 
-(struct lamC [(args : (Listof idC)) (body : ExprC)] #:transparent)
+(struct lamC [(args : (Listof Symbol)) (body : ExprC)] #:transparent)
 (struct appC [(func : ExprC) (args : (Listof ExprC))] #:transparent)
 (struct idC [(name : Symbol)] #:transparent)
 (struct numC[(n : Real)] #:transparent)

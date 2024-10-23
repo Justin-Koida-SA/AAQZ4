@@ -16,7 +16,7 @@
 (struct stringC[(str : String)] #:transparent)
 (struct ifC [(test : ExprC) (then : ExprC) (else : ExprC)] #:transparent)
 
-(struct Enviroment [(bindings : (Listof (Pairof idC Value)))] #:transparent)
+(struct Enviroment [(bindings : (Listof (Pairof Symbol Value)))] #:transparent)
 
 
 
@@ -30,8 +30,10 @@
 
 (define top-level-env
   (list
-   (cons (idC 'true) #t)
-   (cons (idC 'false) #f)))
+   (cons 'true #t)
+   (cons 'false #f)
+   (cons '+ (lamC '(l r) (ifC (and (numV? l) (numV? r))
+                              ((numV (+ (numV-n l) (numV-n r)))) (error "Arguments to + must be real numbers")))))
 
 
 (define (lookup [for : Symbol] [env : Enviroment]) : Value
@@ -42,25 +44,36 @@
          val
          (lookup for (Enviroment rest)))]))
 
-(define (extend-env [env : Enviroment] [new : (Pairof idC Value)]) : Enviroment
-  (Enviroment (cons new (Enviroment-bindings env))))
+(define (extend-env [env : (Listof (Pairof Symbol Value))] [news : (Listof (Pairof Symbol Value))]) : (Listof (Pairof Symbol Value))
+  (match news
+    ['() env]
+    [(cons f r) (cons f (extend-env env r))])
+  )
+
+
 
 (define (interp [expr : ExprC] [env : Enviroment]) : Value
   (match expr
     [(numC n) (numV n)]
     [(idC n) (lookup n env)]
-    [(lamC args body) (closV (map idC-name args) body env)]
-    [(appC f a) (interp f env) ]))
+    [(lamC args body) (closV args body env)]
+    [(appC f a) (app-intrp-helper (interp f env) a)]
+    [(ifC test then else)
+     (if (interp test)
+         (interp then)
+         (interp else))]
+    
+    ))
 
-(define (app-intrp-helper [closer : closV] [args : (Listof ExprC)]) : Value
+(define (app-intrp-helper [closer : closV] [args : (Listof Value)]) : Value
   (match closer
-    [(closV syms body env) (interp body (extend-env env ))])
+    [(closV syms body env) (interp body (Enviroment (extend-env (Enviroment-bindings env) (zip syms args))))])
   )
 
-(define (zip [l1 : (Listof ExprC)] [l2 : (Listof ExprC)]) : (Listof (Listof ExprC))
+(define (zip [l1 : (Listof Symbol)] [l2 : (Listof Value)]) : (Listof (Pairof Symbol Value))
   (match (list l1 l2)
     [(list '() '()) '()]
-    [(list (cons f1 r1) (cons f2 r2)) (cons (list f1 f2) (zip r1 r2))]
+    [(list (cons f1 r1) (cons f2 r2)) (cons (cons f1 f2) (zip r1 r2))]
     [other (error 'zip "Number of variables and arguments do not match AAQZ3: ~a" other)]))
 
 
@@ -86,7 +99,7 @@
     [(list (list args ...) '=> body)
      (cond
        [(not (andmap symbol? args)) (error 'parse "AAQZ Expected a list of symbols for arguments got ~a" args)]
-       [else (lamC (check-duplicate-arg (map idC args)) (parse body))]) ;using '() as place holder top environment replace later
+       [else (lamC (check-duplicate-arg  args) (parse body))]) ;using '() as place holder top environment replace later
      ]
     [other (error 'parse "syntax error in AAQZ3, got ~e" other)]))
 
@@ -96,14 +109,14 @@
 
 ;;takes in a list of idC representing arguments and checks if there are any duplicate names for
 ;;arguments in the given list using check-duplicate-arg-helper. Returns the list of arguments.
-(define (check-duplicate-arg [args : (Listof idC)]) : (Listof idC)
+(define (check-duplicate-arg [args : (Listof Symbol)]) : (Listof Symbol)
   (match args
     ['() '()]
     [(cons first rest) (cons (check-duplicate-arg-helper first rest) (check-duplicate-arg rest))]))
 
 ;;Takes in an idC called 'new' and a list of idC and checks whether 'new' is in the list of idC. Throws
 ;;an error if new is found in the list of idC.
-(define (check-duplicate-arg-helper [new : idC] [existing : (Listof idC)]) : idC
+(define (check-duplicate-arg-helper [new : Symbol] [existing : (Listof Symbol)]) : Symbol
   (match existing
     ['() new]
     [(cons arg rest)

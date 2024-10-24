@@ -2,7 +2,7 @@
 (require typed/rackunit)
 
 (define-type ExprC (U numC stringC idC appC ifC lamC))
-(define-type Value (U numV boolV closV primV))
+(define-type Value (U numV boolV closV primV stringV))
 
 (struct numV[(n : Real)] #:transparent)
 (struct boolV[(bool : Boolean)] #:transparent)
@@ -63,13 +63,15 @@
 (define (interp [expr : ExprC] [env : Environment]) : Value
   (match expr
     [(numC n) (numV n)]
+    [(stringC str) (stringV str)]
     [(idC n) (lookup n env)]
     [(lamC args body) (closV args body env)]
     [(appC f a)
      (define resolved-f (interp f env))
      (match resolved-f
        [(primV _) (do-math resolved-f a env)]
-       [(closV args body env) (app-intrp-helper resolved-f (interp-args a env))])]
+       [(closV args body env) (app-intrp-helper resolved-f (interp-args a env))]
+       [other other])]
     [(ifC test then else)
      (if (interp test env)
          (interp then env)
@@ -94,8 +96,10 @@
             (numV (* (numV-n interp-l) (numV-n interp-r)))
             (error  "AAQZ4 need an integer with ~a operator" '*))]
        [(primV '/)
-        (if (and (numV? interp-l) (numV? interp-r) (not (= (numV-n interp-r) 0)))
-            (numV (/ (numV-n interp-l) (numV-n interp-r)))
+        (if (and (numV? interp-l) (numV? interp-r))
+            (if (not (= (numV-n interp-r) 0))
+                (numV (/ (numV-n interp-l) (numV-n interp-r)))
+                (error "AAQZ4 cant divide by zero :("))
             (error  "AAQZ4 need an integer with ~a operator" '/))]
        [(primV '<=)
         (if (and (numV? interp-l) (numV? interp-r) )
@@ -133,7 +137,7 @@
 (define (serialize [v : Value]) : String
   (match v
     [(numV n) (number->string n)] 
-    [(stringV str) (str)]
+    [(stringC str) (stringV str)]
     [(boolV bool) (if bool "true" "false")]
     [(closV _ _ _) "#<procedure>"]
     [(primV _) "#<primop>"]))
@@ -144,17 +148,14 @@
 (define (parse [prog : Sexp]) : ExprC 
   (match prog
     [(list 'bind clauses ... expr)
-     
      (define pClause (parse-binds (cast clauses (Listof Sexp))))
-     (if (not (null? clauses))
-               (appC (lamC (check-duplicate-arg (bindpair-funName pClause)) (parse expr)) (bindpair-fun pClause))
-     (error 'parse "AAQZ4 cant bind to empty clauses" prog))
-     ]
+     (appC (lamC (check-duplicate-arg (bindpair-funName pClause)) (parse expr)) (bindpair-fun pClause))]
     [(list (list args ...) '=> body)
      (cond
        [(not (andmap symbol? args)) (error 'parse "AAQZ Expected a list of symbols for arguments got ~a" args)]
        [else (lamC (check-duplicate-arg  args) (parse body))])]
     [(? real? n) (numC n)]
+    [(? string? str) (stringC str)]
     [(list 'if test then else) (ifC (parse test) (parse then) (parse else))]
     #;[(list (? symbol? op) l r)
      (if (hash-has-key? op-table op)
@@ -251,8 +252,66 @@
                '{{(div3) => {div3 9}}
                 {(x) => {/ x 3}}}) "3")
 
+(check-equal? (top-interp
+               '{{(noArg) => {noArg}}
+                {() => {3}}}) "3")
+
+(check-equal? (top-interp
+               '{{(noArg) => {noArg}}
+                {() => {3}}}) "3")
+
 (check-equal? (top-interp '(+ 2 3)) "5")
 (check-equal? (top-interp '{if true 34 39}) "34")
 (check-equal? (top-interp '{{(x y) => {+ x y}} 4 3}) "7")
 
+(check-exn #rx"AAQZ4 found a syntax error repeated argument name\n"
+           (lambda ()
+             (top-interp
+               '{{(add1) => {add1 42}}
+                {(x x) => {+ x 1}}})))
 
+(check-equal?
+             (top-interp
+               '{bind [x = 5]
+                      [y = 7]
+                      {+ x y}}) "12")
+(check-equal?
+             (top-interp
+               '{bind  {12}}) "12")
+
+
+(check-exn #rx"Number of variables and arguments do not match AAQZ4"
+           (lambda ()
+             (top-interp
+               '{{(div3) => {div3 9 5}}
+                {(x) => {/ x 3}}})))
+ 
+(check-exn #rx"AAQZ4 need an integer"
+           (lambda ()
+             (top-interp
+               '{{(prim) => {prim "42"}}
+                {(x) => {+ x 1}}})))
+
+(check-exn #rx"AAQZ4 need an integer"
+           (lambda ()
+             (top-interp
+               '{{(prim) => {prim "42"}}
+                {(x) => {* x 1}}})))
+
+(check-exn #rx"AAQZ4 need an integer"
+           (lambda ()
+             (top-interp
+               '{{(prim) => {prim "42"}}
+                {(x) => {- x 1}}})))
+
+(check-exn #rx"AAQZ4 need an integer"
+           (lambda ()
+             (top-interp
+               '{{(prim) => {prim "42"}}
+                {(x) => {/ x 1}}})))
+
+(check-exn #rx"AAQZ4 cant divide by zero"
+           (lambda ()
+             (top-interp
+               '{{(prim) => {prim 42}}
+                {(x) => {/ x 0}}})))

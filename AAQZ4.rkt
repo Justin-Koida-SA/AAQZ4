@@ -142,6 +142,12 @@
 ;;Checks for invalid syntaxes and invalid identifiers.
 (define (parse [prog : Sexp]) : ExprC 
   (match prog
+    [(list 'bind (clause ...) expr)
+     (if (not (null? clauses)
+              (define parsed-clause))
+     (match clause
+       [(list (? symbol? f) '= body)
+        ()])]
     [(list (list args ...) '=> body)
      (cond
        [(not (andmap symbol? args)) (error 'parse "AAQZ Expected a list of symbols for arguments got ~a" args)]
@@ -155,12 +161,10 @@
              (error 'parse "Invalid identifier: ~a in AAQZ3" prog)
              (appC (idC op) (list (parse l) (parse r)))))] 
     [(list s args ...) (appC (parse s) (map parse args))]
-    
     [(? symbol? s)
      (if (hash-has-key? invalid-table s)
          (error 'parse "Invalid identifier: ~a in AAQZ3" prog)
          (idC s))]
-    
     [other (error 'parse "syntax error in AAQZ4, got ~e" other)]))
 
 #;(define (serialize [expr : ExprC]) : String

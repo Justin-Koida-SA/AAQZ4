@@ -7,7 +7,7 @@
 (struct numV[(n : Real)] #:transparent)
 (struct boolV[(bool : Boolean)] #:transparent)
 (struct closV [(arg : (Listof Symbol)) (body : ExprC) (env : Enviroment)])
-(struct primV [(arg : Symbol) (body : ExprC) (env : Enviroment)])
+(struct primV [(arg : Symbol)])
 
 (struct lamC [(args : (Listof Symbol)) (body : ExprC)] #:transparent)
 (struct appC [(func : ExprC) (args : (Listof ExprC))] #:transparent)
@@ -17,7 +17,8 @@
 (struct ifC [(test : ExprC) (then : ExprC) (else : ExprC)] #:transparent)
 
 ;;(struct Enviroment [(bindings : (Listof (Pairof Symbol Value)))] #:transparent)
-(define-type Enviroment (Listof (Pairof Symbol Value)))
+(define-type Environment (Listof binding))
+(struct binding [(bound : Symbol) (val : Value)] #:transparent)
 
 
 ;;defining hash table for invalid identifier.
@@ -25,10 +26,11 @@
 (define invalid-table
   (hash
    'if 0
-   '=> 0))
+   '=> 0
+   '= 0))
 
 
-(define top-level-env : Enviroment
+(define top-level-env : Environment
   (list
    (cons 'true (boolV #t))
    (cons 'false (boolV #f))
@@ -38,7 +40,7 @@
    (cons '* (primV '*))))
 
 
-(define (lookup [for : Symbol] [env : Enviroment]) : Value
+(define (lookup [for : Symbol] [env : Environment]) : Value
   (match env
     ['() (error 'lookup "name not found in env AAQZ4")]
     [(cons (cons (idC name) val) rest)
@@ -46,7 +48,7 @@
          val
          (lookup for (env rest)))]))
 
-(define (extend-env [env : (Listof (Pairof Symbol Value))] [news : (Listof (Pairof Symbol Value))]) : (Listof (Pairof Symbol Value))
+(define (extend-env [env : Environment] [news : Environment]) : Environment
   (match news
     ['() env]
     [(cons f r) (cons f (extend-env env r))])
@@ -70,11 +72,11 @@
     [(closV syms body env) (interp body (extend-env env (zip syms args)))])
   )
 
-(define (zip [l1 : (Listof Symbol)] [l2 : (Listof Value)]) : (Listof (Pairof Symbol Value))
+(define (zip [l1 : (Listof Symbol)] [l2 : (Listof Value)]) : Environment
   (match (list l1 l2)
     [(list '() '()) '()]
     [(list (cons f1 r1) (cons f2 r2)) (cons (cons f1 f2) (zip r1 r2))]
-    [other (error 'zip "Number of variables and arguments do not match AAQZ3: ~a" other)]))
+    [other (error 'zip "Number of variables and arguments do not match AAQZ4: ~a" other)]))
 
 
 
@@ -101,7 +103,7 @@
        [(not (andmap symbol? args)) (error 'parse "AAQZ Expected a list of symbols for arguments got ~a" args)]
        [else (lamC (check-duplicate-arg  args) (parse body))]) ;using '() as place holder top environment replace later
      ]
-    [other (error 'parse "syntax error in AAQZ3, got ~e" other)]))
+    [other (error 'parse "syntax error in AAQZ4, got ~e" other)]))
 
 #;(define (serialize [expr : ExprC]) : String
   1)
@@ -121,7 +123,7 @@
     ['() new]
     [(cons arg rest)
      (if (equal? new arg)
-         (error "AAQZ3 found a syntax error repeated argument name\n")
+         (error "AAQZ4 found a syntax error repeated argument name\n")
          (check-duplicate-arg-helper new rest))]))
 
 

@@ -21,6 +21,7 @@
 (define-type Environment (Listof binding))
 (struct binding [(bound : Symbol) (val : Value)] #:transparent)
 
+(struct bindpair [(funName : (Listof Symbol)) (fun : (Listof ExprC))])
 
 ;;defining hash table for invalid identifier.
 ;;These symbols cannot be made into functions because we use these in our language
@@ -90,7 +91,7 @@
             (error  "AAQZ4 need an integer with ~a operator" '-))]
        [(primV '*)
         (if (and (numV? interp-l) (numV? interp-r))
-            (numV (- (numV-n interp-l) (numV-n interp-r)))
+            (numV (* (numV-n interp-l) (numV-n interp-r)))
             (error  "AAQZ4 need an integer with ~a operator" '*))]
        [(primV '/)
         (if (and (numV? interp-l) (numV? interp-r) (not (= (numV-n interp-r) 0)))
@@ -142,12 +143,13 @@
 ;;Checks for invalid syntaxes and invalid identifiers.
 (define (parse [prog : Sexp]) : ExprC 
   (match prog
-    [(list 'bind (clause ...) expr)
-     (if (not (null? clauses)
-              (define parsed-clause))
-     (match clause
-       [(list (? symbol? f) '= body)
-        ()])]
+    [(list 'bind clauses ... expr)
+     
+     (define pClause (parse-binds (cast clauses (Listof Sexp))))
+     (if (not (null? clauses))
+               (appC (lamC (check-duplicate-arg (bindpair-funName pClause)) (parse expr)) (bindpair-fun pClause))
+     (error 'parse "AAQZ4 cant bind to empty clauses" prog))
+     ]
     [(list (list args ...) '=> body)
      (cond
        [(not (andmap symbol? args)) (error 'parse "AAQZ Expected a list of symbols for arguments got ~a" args)]
@@ -167,8 +169,14 @@
          (idC s))]
     [other (error 'parse "syntax error in AAQZ4, got ~e" other)]))
 
-#;(define (serialize [expr : ExprC]) : String
-  1)
+(define (parse-binds [clauses : Sexp]) : bindpair
+  (match clauses
+    ['() (bindpair '() '())]
+    [(cons (list (? symbol? id) '= expr) r)
+     (let* ([parsed-rest (parse-binds r)] 
+            [ids (cons id (bindpair-funName parsed-rest))]
+            [exprs (cons (parse expr) (bindpair-fun parsed-rest))]) 
+       (bindpair ids exprs))]))
 
 
 ;;takes in a list of idC representing arguments and checks if there are any duplicate names for
@@ -194,5 +202,15 @@
 (top-interp '(+ 2 3))
 (top-interp '{if true 34 39})
 (top-interp '{{(x y) => {+ x y}} 4 3})
+
+(check-equal? (parse
+               '{bind [x = 5]
+                      [y = 7]
+                      {+ x y}})
+              (appC (lamC '(x y)
+                          (appC (idC '+)
+                                (list (idC 'x)
+                                      (idC 'y))))
+                    (list (numC 5) (numC 7))))
 
 

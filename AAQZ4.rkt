@@ -29,7 +29,8 @@
   (hash
    'if 0
    '=> 0
-   '= 0))
+   '= 0
+   'bind 0))
 
 
 (define top-level-env : Environment
@@ -41,7 +42,6 @@
    (binding '/ (primV '/))
    (binding '* (primV '*))
    (binding '<= (primV '<=))))
-
 
 (define (lookup [for : Symbol] [env : Environment]) : Value
   (match env
@@ -73,7 +73,10 @@
        [(closV args body env) (app-intrp-helper resolved-f (interp-args a env))]
        [other other])]
     [(ifC test then else)
-     (if (interp test env)
+     (define interped-test (interp test env))
+     (if (if (boolV? interped-test) 
+             (boolV-bool interped-test)
+             (error "AAQZ4 needs a bool to do if ops"))
          (interp then env)
          (interp else env))]))
 
@@ -137,7 +140,7 @@
 (define (serialize [v : Value]) : String
   (match v
     [(numV n) (number->string n)] 
-    [(stringC str) (stringV str)]
+    [(stringV str) str]
     [(boolV bool) (if bool "true" "false")]
     [(closV _ _ _) "#<procedure>"]
     [(primV _) "#<primop>"]))
@@ -208,7 +211,7 @@
                                       (idC 'y))))
                     (list (numC 5) (numC 7))))
 
-
+ 
 (check-equal? (parse
                '{bind [x = 5]
                       [y = 7]
@@ -235,6 +238,8 @@
                                               (idC 'y))))
                             (list (numC 5) (numC 7)))) 
 
+(check-equal? (top-interp
+               '{if false 3 23}) "23")
 
 (check-equal? (top-interp
                '{{(add1) => {add1 42}}
@@ -253,12 +258,28 @@
                 {(x) => {/ x 3}}}) "3")
 
 (check-equal? (top-interp
-               '{{(noArg) => {noArg}}
-                {() => {3}}}) "3")
+               '{{(bigger-than-2) => {bigger-than-2 4}}
+                {(x) => {<= 2 x}}}) "true")
 
 (check-equal? (top-interp
                '{{(noArg) => {noArg}}
                 {() => {3}}}) "3")
+
+(check-equal? (top-interp
+               '{43}) "43")
+
+(check-equal? (top-interp
+               '{"dogs"}) "dogs")
+
+(check-equal? (top-interp
+               '{true}) "true")
+
+(check-equal? (top-interp
+               '{(x) => {* x 2}}) "#<procedure>")
+
+(check-equal? (top-interp
+               '*) "#<primop>")
+
 
 (check-equal? (top-interp '(+ 2 3)) "5")
 (check-equal? (top-interp '{if true 34 39}) "34")
@@ -271,14 +292,13 @@
                 {(x x) => {+ x 1}}})))
 
 (check-equal?
-             (top-interp
-               '{bind [x = 5]
-                      [y = 7]
-                      {+ x y}}) "12")
+ (top-interp
+  '{bind [x = 5]
+         [y = 7]
+         {+ x y}}) "12")
 (check-equal?
-             (top-interp
-               '{bind  {12}}) "12")
-
+ (top-interp
+  '{bind  {12}}) "12")
 
 (check-exn #rx"Number of variables and arguments do not match AAQZ4"
            (lambda ()
@@ -291,6 +311,11 @@
              (top-interp
                '{{(prim) => {prim "42"}}
                 {(x) => {+ x 1}}})))
+
+(check-exn #rx"AAQZ4 needs a bool to do if ops"
+           (lambda ()
+             (top-interp
+               '{if "true" 42 43})))
 
 (check-exn #rx"AAQZ4 need an integer"
            (lambda ()
@@ -314,4 +339,16 @@
            (lambda ()
              (top-interp
                '{{(prim) => {prim 42}}
-                {(x) => {/ x 0}}})))
+                {(x) => {/ x 0}}}))) 
+
+(check-exn #rx"name not found in env AAQZ4"
+           (lambda ()
+             (top-interp
+               '{{(prim) => {prim 2}}
+                {(x) => {/ x y}}})))
+
+(check-exn #rx"AAQZ4 need an integer"
+           (lambda ()
+             (top-interp
+               '{{(prim) => {prim "2"}}
+                {(x) => {<= x 3}}})))

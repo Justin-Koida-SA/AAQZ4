@@ -16,8 +16,8 @@
 (struct stringC[(str : String)] #:transparent)
 (struct ifC [(test : ExprC) (then : ExprC) (else : ExprC)] #:transparent)
 
-(struct Enviroment [(bindings : (Listof (Pairof Symbol Value)))] #:transparent)
-
+;;(struct Enviroment [(bindings : (Listof (Pairof Symbol Value)))] #:transparent)
+(define-type Enviroment (Listof (Pairof Symbol Value)))
 
 
 ;;defining hash table for invalid identifier.
@@ -28,12 +28,14 @@
    '=> 0))
 
 
-(define top-level-env
+(define top-level-env : Enviroment
   (list
-   (cons 'true #t)
-   (cons 'false #f)
-   (cons '+ (lamC '(l r) (ifC (and (numV? l) (numV? r))
-                              ((numV (+ (numV-n l) (numV-n r)))) (error "Arguments to + must be real numbers")))))
+   (cons 'true (boolV #t))
+   (cons 'false (boolV #f))
+   (cons '+ (primV '+))
+   (cons '- (primV '-))
+   (cons '/ (primV '/))
+   (cons '* (primV '*))))
 
 
 (define (lookup [for : Symbol] [env : Enviroment]) : Value
@@ -42,15 +44,13 @@
     [(cons (cons (idC name) val) rest)
      (if (symbol=? for name)
          val
-         (lookup for (Enviroment rest)))]))
+         (lookup for (env rest)))]))
 
 (define (extend-env [env : (Listof (Pairof Symbol Value))] [news : (Listof (Pairof Symbol Value))]) : (Listof (Pairof Symbol Value))
   (match news
     ['() env]
     [(cons f r) (cons f (extend-env env r))])
   )
-
-
 
 (define (interp [expr : ExprC] [env : Enviroment]) : Value
   (match expr
@@ -67,7 +67,7 @@
 
 (define (app-intrp-helper [closer : closV] [args : (Listof Value)]) : Value
   (match closer
-    [(closV syms body env) (interp body (Enviroment (extend-env (Enviroment-bindings env) (zip syms args))))])
+    [(closV syms body env) (interp body (extend-env env (zip syms args)))])
   )
 
 (define (zip [l1 : (Listof Symbol)] [l2 : (Listof Value)]) : (Listof (Pairof Symbol Value))

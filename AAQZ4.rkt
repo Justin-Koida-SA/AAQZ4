@@ -41,7 +41,8 @@
    (binding '- (primV '-))
    (binding '/ (primV '/))
    (binding '* (primV '*))
-   (binding '<= (primV '<=))))
+   (binding '<= (primV '<=))
+   (binding 'equal? (primV 'equal?))))
 
 (define (lookup [for : Symbol] [env : Environment]) : Value
   (match env
@@ -262,6 +263,35 @@
                 {(x) => {<= 2 x}}}) "true")
 
 (check-equal? (top-interp
+               '{{(bigger-than-2) => {bigger-than-2 4}}
+                {(x) => {<= 2 x}}}) "true")
+
+(check-equal? (top-interp
+               '{{(same-as-2) => {same-as-2 2}}
+                {(x) => {equal? 2 x}}}) "true")
+
+(check-equal? (top-interp
+               '{{(same-as-2) => {same-as-2 3}}
+                {(x) => {equal? 2 x}}}) "false")
+
+(check-equal? (top-interp
+               '{{(same-as-str-2) => {same-as-str-2 "2"}}
+                {(x) => {equal? "2" x}}}) "true")
+
+(check-equal? (top-interp
+               '{{(same-as-str-2) => {same-as-str-2 "3"}}
+                {(x) => {equal? "2" x}}}) "false")
+
+(check-equal? (top-interp
+               '{{(same-bool) => {same-bool "false"}}
+                {(x) => {equal? "false" x}}}) "true")
+
+(check-equal? (top-interp
+               '{{(same-bool) => {same-bool "false"}}
+                {(x) => {equal? "true" x}}}) "false")
+
+
+(check-equal? (top-interp
                '{{(noArg) => {noArg}}
                 {() => {3}}}) "3")
 
@@ -273,6 +303,8 @@
 
 (check-equal? (top-interp
                '{true}) "true")
+(check-equal? (top-interp
+               '{false}) "false")
 
 (check-equal? (top-interp
                '{(x) => {* x 2}}) "#<procedure>")

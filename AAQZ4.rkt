@@ -112,9 +112,10 @@
        [(primV 'equal?)
         (cond
           [(and (numV? interp-l) (numV? interp-r)) (boolV (= (numV-n interp-l) (numV-n interp-r)))]
-          [(and (stringV? interp-l) (stringV? interp-r)) (boolV (string=? (stringV-str interp-l) (stringV-str interp-r)))]
+          [(and (stringV? interp-l) (stringV? interp-r))
+           (boolV (string=? (stringV-str interp-l) (stringV-str interp-r)))]
           [(and (boolV? interp-l) (boolV? interp-r)) (boolV (eq? (boolV-bool interp-l) (boolV-bool interp-r)))]
-          [else (error  "AAQZ4 can only check equal for num string and bool" )])]
+          [else (error  "AAQZ4 can only check equal for num string and bool of the same type" )])]
           
        )]
     [other (error  "wrong number of variable for primV AAQZ4: ~a" other)]))
@@ -170,9 +171,9 @@
     [(list s args ...) (appC (parse s) (map parse args))]
     [(? symbol? s)
      (if (hash-has-key? invalid-table s)
-         (error 'parse "Invalid identifier: ~a in AAQZ3" prog)
+         (error 'parse "Invalid identifier: ~a in AAQZ4" prog)
          (idC s))]
-    [other (error 'parse "syntax error in AAQZ4, got ~e" other)]))
+    #;[other (error 'parse "syntax error in AAQZ4, got ~e" other)]))
 
 (define (parse-binds [clauses : Sexp]) : bindpair
   (match clauses
@@ -283,12 +284,12 @@
                 {(x) => {equal? "2" x}}}) "false")
 
 (check-equal? (top-interp
-               '{{(same-bool) => {same-bool "false"}}
-                {(x) => {equal? "false" x}}}) "true")
+               '{{(same-bool) => {same-bool false}}
+                {(x) => {equal? false x}}}) "true")
 
 (check-equal? (top-interp
-               '{{(same-bool) => {same-bool "false"}}
-                {(x) => {equal? "true" x}}}) "false")
+               '{{(same-bool) => {same-bool false}}
+                {(x) => {equal? true x}}}) "false")
 
 
 (check-equal? (top-interp
@@ -384,3 +385,31 @@
              (top-interp
                '{{(prim) => {prim "2"}}
                 {(x) => {<= x 3}}})))
+
+(check-exn #rx"wrong number of variable for primV AAQZ4"
+           (lambda ()
+             (top-interp
+               '{{(prim) => {prim 42}}
+                {(x) => {+ x 1 4}}})))
+
+(check-exn #rx"AAQZ4 can only check equal for num string and bool"
+           (lambda ()
+             (top-interp
+               '{{(same-bool) => {same-bool "false"}}
+                {(x) => {equal? true x}}}))) 
+
+(check-exn #rx"AAQZ Expected a list of symbols for arguments"
+           (lambda ()
+             (top-interp
+               '{{(same-bool) => {same-bool false}}
+                {(4) => {equal? true x}}})))
+
+
+(check-exn #rx"parse: Invalid identifier"
+           (lambda ()
+             (top-interp
+               'if)))
+
+(top-interp '(3 4 5))
+
+

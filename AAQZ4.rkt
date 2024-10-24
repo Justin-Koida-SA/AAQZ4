@@ -197,11 +197,16 @@
          (check-duplicate-arg-helper new rest))]))
 
 ;;test
+(check-equal? (parse
+               '{bind [x = 5]
+                      [y = 7]
+                      {+ x y}})
+              (appC (lamC '(x y)
+                          (appC (idC '+)
+                                (list (idC 'x)
+                                      (idC 'y))))
+                    (list (numC 5) (numC 7))))
 
-
-(top-interp '(+ 2 3))
-(top-interp '{if true 34 39})
-(top-interp '{{(x y) => {+ x y}} 4 3})
 
 (check-equal? (parse
                '{bind [x = 5]
@@ -212,5 +217,42 @@
                                 (list (idC 'x)
                                       (idC 'y))))
                     (list (numC 5) (numC 7))))
+
+(check-equal? (parse
+               '{{(add1) => {add1 42}}
+                {(x) => {+ x 1}}})
+              (appC (lamC '(add1) (appC (idC 'add1)
+                                        (list (numC 42))))
+                    (list (lamC '(x) (appC (idC '+)
+                                           (list (idC 'x)
+                                                 (numC 1)))))))
+(check-equal? (parse
+               '{{(x y) => {+ x y}}
+                5 7}) (appC (lamC '(x y)
+                                  (appC (idC '+)
+                                        (list (idC 'x)
+                                              (idC 'y))))
+                            (list (numC 5) (numC 7)))) 
+
+
+(check-equal? (top-interp
+               '{{(add1) => {add1 42}}
+                {(x) => {+ x 1}}}) "43")
+
+(check-equal? (top-interp
+               '{{(min1) => {min1 42}}
+                {(x) => {- x 1}}}) "41")
+
+(check-equal? (top-interp
+               '{{(mult2) => {mult2 42}}
+                {(x) => {* x 2}}}) "84")
+
+(check-equal? (top-interp
+               '{{(div3) => {div3 9}}
+                {(x) => {/ x 3}}}) "3")
+
+(check-equal? (top-interp '(+ 2 3)) "5")
+(check-equal? (top-interp '{if true 34 39}) "34")
+(check-equal? (top-interp '{{(x y) => {+ x y}} 4 3}) "7")
 
 

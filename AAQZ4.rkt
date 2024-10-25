@@ -202,20 +202,6 @@
 
 ;;test
 
-(top-interp
-    '{bind [Y = {(f) => 
-                {bind [fun = {(x) => 
-                              {if {<= x 0} 
-                                   0 
-                                   {+ x {fun {- x 1}}}}}]
-                      {f fun}}}]
-           [length = {(l) => {if {empty? l} 
-                                 0 
-                                 {+ 1 {length {rest l}}}}}]
-           [addup = {(l) => {if {empty? l} 
-                                0 
-                                {+ {first l} {addup {rest l}}}}}]
-           {addup (cons 3 (cons 17 empty))}})
 
 (check-equal? (parse
                '{bind [x = 5]
@@ -428,6 +414,11 @@
            (lambda ()
              (top-interp
               '(3 4 5))))
+
+(check-equal? (top-interp {bind [fact = {(self n) => {if {<= n 0}
+                                                         1
+                                                         {* n {self self{- n 1}}}}}]
+                                {fact fact 4}}))
 
 
 

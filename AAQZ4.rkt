@@ -46,7 +46,7 @@
 
 (define (lookup [for : Symbol] [env : Environment]) : Value
   (match env
-    ['() (error 'lookup "name not found in env AAQZ4")]
+    ['() (error 'lookup "user-error AAQZ4 found an unbound variable")]
     [(cons (binding name val) rest)
      (if (symbol=? for name)
          val
@@ -201,6 +201,22 @@
          (check-duplicate-arg-helper new rest))]))
 
 ;;test
+
+(top-interp
+    '{bind [Y = {(f) => 
+                {bind [fun = {(x) => 
+                              {if {<= x 0} 
+                                   0 
+                                   {+ x {fun {- x 1}}}}}]
+                      {f fun}}}]
+           [length = {(l) => {if {empty? l} 
+                                 0 
+                                 {+ 1 {length {rest l}}}}}]
+           [addup = {(l) => {if {empty? l} 
+                                0 
+                                {+ {first l} {addup {rest l}}}}}]
+           {addup (cons 3 (cons 17 empty))}})
+
 (check-equal? (parse
                '{bind [x = 5]
                       [y = 7]
@@ -372,7 +388,7 @@
                '{{(prim) => {prim 42}}
                 {(x) => {/ x 0}}}))) 
 
-(check-exn #rx"name not found in env AAQZ4"
+(check-exn #rx"lookup: user-error AAQZ4 found an unbound variable"
            (lambda ()
              (top-interp
                '{{(prim) => {prim 2}}
@@ -412,4 +428,8 @@
            (lambda ()
              (top-interp
               '(3 4 5))))
+
+
+
+
 

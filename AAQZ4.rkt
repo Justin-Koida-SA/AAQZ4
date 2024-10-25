@@ -415,7 +415,7 @@
              (top-interp
               '(3 4 5))))
 
-(check-equal? (top-interp {bind [fact = {(self n) => {if {<= n 0}
+(check-equal? (top-interp '{bind [fact = {(self n) => {if {<= n 0}
                                                          1
                                                          {* n {self self{- n 1}}}}}]
                                 {fact fact 4}}))

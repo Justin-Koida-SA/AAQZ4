@@ -72,7 +72,7 @@
      (match resolved-f
        [(primV _) (do-math resolved-f a env)]
        [(closV args body env) (app-intrp-helper resolved-f (interp-args a env))]
-       [other other])]
+       [other (error "AAQZ4 needs a function that we can apply got: ~a" other)])]
     [(ifC test then else)
      (define interped-test (interp test env))
      (if (if (boolV? interped-test) 
@@ -106,7 +106,7 @@
                 (error "AAQZ4 cant divide by zero :("))
             (error  "AAQZ4 need an integer with ~a operator" '/))]
        [(primV '<=)
-        (if (and (numV? interp-l) (numV? interp-r) )
+        (if (and (numV? interp-l) (numV? interp-r))
             (boolV (<= (numV-n interp-l) (numV-n interp-r)))
             (error  "AAQZ4 need an integer with ~a operator" '<=))]
        [(primV 'equal?)
@@ -115,9 +115,7 @@
           [(and (stringV? interp-l) (stringV? interp-r))
            (boolV (string=? (stringV-str interp-l) (stringV-str interp-r)))]
           [(and (boolV? interp-l) (boolV? interp-r)) (boolV (eq? (boolV-bool interp-l) (boolV-bool interp-r)))]
-          [else (error  "AAQZ4 can only check equal for num string and bool of the same type" )])]
-          
-       )]
+          [else (error  "AAQZ4 can only check equal for num string and bool of the same type" )])])]
     [other (error  "wrong number of variable for primV AAQZ4: ~a" other)]))
 
 
@@ -158,7 +156,7 @@
     [(list (list args ...) '=> body)
      (cond
        [(not (andmap symbol? args)) (error 'parse "AAQZ Expected a list of symbols for arguments got ~a" args)]
-       [else (lamC (check-duplicate-arg  args) (parse body))])]
+       [else (lamC (check-duplicate-arg args) (parse body))])]
     [(? real? n) (numC n)]
     [(? string? str) (stringC str)]
     [(list 'if test then else) (ifC (parse test) (parse then) (parse else))]
@@ -294,18 +292,18 @@
 
 (check-equal? (top-interp
                '{{(noArg) => {noArg}}
-                {() => {3}}}) "3")
+                {() => 3}}) "3")
 
 (check-equal? (top-interp
-               '{43}) "43")
+               '43) "43")
 
 (check-equal? (top-interp
-               '{"dogs"}) "dogs")
+               '"dogs") "dogs")
 
 (check-equal? (top-interp
-               '{true}) "true")
+               'true) "true")
 (check-equal? (top-interp
-               '{false}) "false")
+               'false) "false")
 
 (check-equal? (top-interp
                '{(x) => {* x 2}}) "#<procedure>")
@@ -331,7 +329,7 @@
          {+ x y}}) "12")
 (check-equal?
  (top-interp
-  '{bind  {12}}) "12")
+  '{bind  12}) "12")
 
 (check-exn #rx"Number of variables and arguments do not match AAQZ4"
            (lambda ()
@@ -410,6 +408,8 @@
              (top-interp
                'if)))
 
-(top-interp '(3 4 5))
-
+(check-exn #rx"AAQZ4 needs a function that we can apply got"
+           (lambda ()
+             (top-interp
+              '(3 4 5))))
 

@@ -32,7 +32,7 @@
    '= 0
    'bind 0))
 
-
+;; top level environment 
 (define top-level-env : Environment
   (list
    (binding 'true (boolV #t))
@@ -44,23 +44,29 @@
    (binding '<= (primV '<=))
    (binding 'equal? (primV 'equal?))))
 
+;; takes in a symbol to be looked up in an environment and returns its corresponding value
 (define (lookup [for : Symbol] [env : Environment]) : Value
   (match env
-    ['() (error 'lookup "user-error AAQZ4 found an unbound variable")]
+    ['() (error 'lookup "user-error AAQZ4 found an unbound variable: ~a ~a" for env)]
     [(cons (binding name val) rest)
      (if (symbol=? for name)
          val
          (lookup for rest))]))
 
+;; takes in two environments and combines them into one environment
 (define (extend-env [env : Environment] [news : Environment]) : Environment
   (match news
     ['() env]
     [(cons f r) (cons f (extend-env env r))])
   )
- 
+
+;; parses, then interprets a given program in the form of an Sexpr, then calls the serialize
+;; function to turn it into a string
 (define (top-interp [prog : Sexp]) : String
   (serialize (interp (parse prog) top-level-env)))
 
+;; Takes in an ExprC and an Environment and returns a Value representing the
+;; interpreted program.
 (define (interp [expr : ExprC] [env : Environment]) : Value
   (match expr
     [(numC n) (numV n)]
@@ -81,6 +87,9 @@
          (interp then env)
          (interp else env))]))
 
+;; takes in a primV operation, arguments in the form of Listof ExprC, and an environment.
+;; Matches the operation to its corresponding functionality and returns the evaluated
+;; operation.
 (define (do-math [op : primV] [arg : (Listof ExprC)] [env : Environment]) : Value
   (match  arg
     [(list l r)
@@ -119,24 +128,28 @@
     [other (error  "wrong number of variable for primV AAQZ4: ~a" other)]))
 
 
-
+;; 
 (define (app-intrp-helper [closer : closV] [args : (Listof Value)]) : Value
   (match closer
     [(closV syms body env) (interp body (extend-env env (bind syms args)))])
   )
 
- 
+;; takes in a list of symbols and a list of values and creates a binding for each
+;; corresponding symbol value pair. The bindings are then put into an Environment
 (define (bind [l1 : (Listof Symbol)] [l2 : (Listof Value)]) : Environment
   (match (list l1 l2)
     [(list '() '()) '()]
     [(list (cons f1 r1) (cons f2 r2)) (cons (binding f1 f2) (bind r1 r2))]
     [other (error 'bind "Number of variables and arguments do not match AAQZ4: ~a" other)]))
 
+;; takes in a list of ExprC representing args, and an Environment. Interprets everything
+;; in the list of ExprC into a list of Values 
 (define (interp-args [args : (Listof ExprC)] [env : Environment]) : (Listof Value)
   (match args
     ['() '()]
     [(cons other r) (cons (interp other env) (interp-args r env))]))
 
+;; Takes in a type Value and turns that value into a String
 (define (serialize [v : Value]) : String
   (match v
     [(numV n) (number->string n)] 
@@ -146,7 +159,7 @@
     [(primV _) "#<primop>"]))
 
 
-;;takes in an S-expression and parses it into our AAQZ3 language in the form of an ExprC.
+;;takes in an S-expression and parses it into our AAQZ4 language in the form of an ExprC.
 ;;Checks for invalid syntaxes and invalid identifiers.
 (define (parse [prog : Sexp]) : ExprC 
   (match prog
@@ -183,15 +196,15 @@
        (bindpair ids exprs))]))
 
 
-;;takes in a list of idC representing arguments and checks if there are any duplicate names for
+;;takes in a list of symbols representing arguments and checks if there are any duplicate names for
 ;;arguments in the given list using check-duplicate-arg-helper. Returns the list of arguments.
 (define (check-duplicate-arg [args : (Listof Symbol)]) : (Listof Symbol)
   (match args
     ['() '()]
     [(cons first rest) (cons (check-duplicate-arg-helper first rest) (check-duplicate-arg rest))]))
 
-;;Takes in an idC called 'new' and a list of idC and checks whether 'new' is in the list of idC. Throws
-;;an error if new is found in the list of idC.
+;;Takes in an symbol called 'new' and a list of symbols and checks whether 'new' is in the list of symbols. Throws
+;;an error if new is found in the list of symbols.
 (define (check-duplicate-arg-helper [new : Symbol] [existing : (Listof Symbol)]) : Symbol
   (match existing
     ['() new]
@@ -415,10 +428,11 @@
              (top-interp
               '(3 4 5))))
 
-(check-equal? (top-interp '{bind [fact = {(self n) => {if {<= n 0}
-                                                         1
-                                                         {* n {self self{- n 1}}}}}]
-                                {fact fact 4}}))
+(check-equal? (top-interp
+               '{bind [fact = {(self n) => {if {<= n 0}
+                                               1
+                                               {* n {self self{- n 1}}}}}]
+                      {fact fact 4}}) 24)
 
 
 
